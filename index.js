@@ -43,11 +43,40 @@ const User = mongoose.model("users", userSchema);
 const fileSchema = new mongoose.Schema({
   username: { type: String, required: true },
   link: { type: String, required: true },
-  timeStamp: { type: Date, default: Date.now },
   filename: {type:String},
-  size: { type: Number, required: true }
+  size: { type: Number, required: true },
+  timeStamp: { type: Date, default: Date.now },
 });
 const ShareFile = mongoose.model("share_files", fileSchema);
+
+
+// File Schema
+app.post("/share-file", async (req, res) => {
+  try {
+    const { username, link, filename, size, timeStamp } = req.body;
+
+    // Validate required fields
+    if (!username || !link || !filename || !size) {
+      return res.status(400).json({ error: "All required fields must be provided" });
+    }
+
+    // Create new entry
+    const newFile = new ShareFile({
+      username,
+      link,
+      filename,
+      size,
+      timeStamp: timeStamp || Date.now()
+    });
+
+    await newFile.save();
+
+    res.json({ message: "File shared successfully", file: newFile });
+  } catch (error) {
+    console.error("Share file error:", error);
+    res.status(500).json({ error: "Failed to share file" });
+  }
+});
 
 // Multer Config
 const upload = multer({
@@ -227,6 +256,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 // DELETE
 app.delete("/delete/:id", async (req, res) => {
   try {
+    const {fileLink} = req.body;
     // 1. Get token from Authorization header
     const authHeader = req.headers.authorization;
     if (!authHeader) {
@@ -285,7 +315,9 @@ app.delete("/delete/:id", async (req, res) => {
     await cloudinary.uploader.destroy(publicId, { resource_type: "raw" });
 
     // 7. Delete record from MongoDB
-    await ShareFile.findByIdAndDelete(req.params.id);
+    // await ShareFile.findByIdAndDelete(req.params.id);
+    await ShareFile.deleteMany({ link: fileLink });
+
 
     // 8. Respond success
     res.json({ message: "File deleted successfully" });
@@ -346,6 +378,50 @@ app.get("/get-info", (req, res) => {
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 });
+
+
+// Share File Route
+app.post("/share-file", async (req, res) => {
+  try {
+    const { fileId, recipientEmail } = req.body;
+
+    // Validate input
+    if (!fileId || !recipientEmail) {
+      return res.status(400).json({ error: "File ID and recipient email are required" });
+    }
+
+    // 1. Find recipient by email
+    const recipient = await User.findOne({ email: recipientEmail });
+    if (!recipient) {
+      return res.status(404).json({ error: "Recipient user not found" });
+    }
+
+    // 2. Find the file by ID
+    const file = await ShareFile.findById(fileId);
+    if (!file) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    // (Optional) Ownership check — uncomment if needed
+    // if (file.owner !== decoded.username) {
+    //   return res.status(403).json({ error: "You are not the owner of this file" });
+    // }
+
+    // 3. Share the file if not already shared
+    if (!file.sharedWith.includes(recipient.email)) {
+      file.sharedWith.push(recipient.email);
+      await file.save();
+    }
+
+    res.json({ message: `File shared with ${recipient.email} successfully` });
+
+  } catch (error) {
+    console.error("Share file error:", error);
+    res.status(500).json({ error: "Failed to share file" });
+  }
+});
+
+
 
 app.listen(port, () => {
   console.log(`🚀 Server running at http://localhost:${port}`);
