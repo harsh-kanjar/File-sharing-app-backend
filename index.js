@@ -12,7 +12,7 @@ dotenv.config();
 const app = express();
 const port = 5000;
 
-app.use(cors());
+app.use(cors({ origin: "*" }));
 // enable body parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
