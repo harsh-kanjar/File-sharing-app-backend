@@ -7,6 +7,7 @@ const fs = require("fs");
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer")
 dotenv.config();
 
 const app = express();
@@ -108,22 +109,73 @@ async function generateUniqueUsername(email) {
   return candidate;
 }
 
+
+
+
 // --- Auth routes ---
 
 // Register
-app.post("/register", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
+// OTP store
+const otpStore = new Map();
 
-    // check if email already registered
+// Send OTP route
+app.post("/send-otp", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email is required" });
+
     const existing = await User.findOne({ email: email.toLowerCase().trim() });
     if (existing) return res.status(409).json({ error: "Email already registered" });
 
-    // generate unique username from email local-part
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    otpStore.set(email.toLowerCase().trim(), {
+      otp,
+      expiresAt: Date.now() + 5 * 60 * 1000
+    });
+
+    // ✅ Ensure `from` matches your Gmail user
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: "harshkanjar007@gmail.com",
+        pass: "cqwy odvg gtii gkxj" // App password
+      }
+    });
+
+    await transporter.sendMail({
+      from: "harshkanjar007@gmail.com", // must match Gmail account
+      to: email,
+      subject: "Your OTP Code",
+      text: `Your verification code is ${otp}. It will expire in 5 minutes.`
+    });
+
+    res.json({ message: "OTP sent to email" });
+
+  } catch (err) {
+    console.error("OTP send error:", err);
+    res.status(500).json({ error: "Failed to send OTP" });
+  }
+});
+
+app.post("/register", async (req, res) => {
+  try {
+    const { email, password, otp } = req.body;
+    if (!email || !password || !otp) {
+      return res.status(400).json({ error: "Email, password and OTP are required" });
+    }
+
+    const stored = otpStore.get(email.toLowerCase().trim());
+    if (!stored || stored.otp !== otp || stored.expiresAt < Date.now()) {
+      return res.status(400).json({ error: "Invalid or expired OTP" });
+    }
+
+    otpStore.delete(email.toLowerCase().trim());
+
+    const existing = await User.findOne({ email: email.toLowerCase().trim() });
+    if (existing) return res.status(409).json({ error: "Email already registered" });
+
     const username = await generateUniqueUsername(email);
 
-    // hash password
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
@@ -135,18 +187,19 @@ app.post("/register", async (req, res) => {
 
     await newUser.save();
 
-    // optionally sign a token right away (or require login)
     const token = jwt.sign(
       { id: newUser._id, username: newUser.username },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET
     );
 
     res.status(201).json({ message: "User registered", username: newUser.username, token });
+
   } catch (err) {
     console.error("Register error:", err);
     res.status(500).json({ error: "Registration failed" });
   }
 });
+
 
 // Login
 app.post("/login", async (req, res) => {
