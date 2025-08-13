@@ -417,13 +417,13 @@ app.post("/files", async (req, res) => {
 });
 
 
-app.get("/get-info", (req, res) => {
-  const auth = req.header("Authorization"); // yaha se header le rahe hain
-  if (!auth || !auth.startsWith("Bearer ")) {
+app.post("/get-info", (req, res) => {
+  // const auth = req.header("Authorization"); // yaha se header le rahe hain
+  const {token} = req.body; 
+  if (!token) {
     return res.status(401).json({ error: "Authorization token required" });
   }
 
-  const token = auth.split(" ")[1];
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     res.json({ user: payload });
