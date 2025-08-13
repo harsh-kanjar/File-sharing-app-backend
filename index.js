@@ -7,7 +7,8 @@ const fs = require("fs");
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const nodemailer = require("nodemailer")
+const nodemailer = require("nodemailer");
+const { type } = require("os");
 dotenv.config();
 
 const app = express();
@@ -35,6 +36,7 @@ mongoose.connect(process.env.MONGODB, {
 const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   username: { type: String, required: true, unique: true, trim: true },
+  avatar: {type: String},
   passwordHash: { type: String, required: true },
   createdAt: { type: Date, default: Date.now }
 });
@@ -159,7 +161,7 @@ app.post("/send-otp", async (req, res) => {
 
 app.post("/register", async (req, res) => {
   try {
-    const { email, password, otp } = req.body;
+    const { email, password,avatar, otp } = req.body;
     if (!email || !password || !otp) {
       return res.status(400).json({ error: "Email, password and OTP are required" });
     }
@@ -182,13 +184,14 @@ app.post("/register", async (req, res) => {
     const newUser = new User({
       email: email.toLowerCase().trim(),
       username,
+      avatar,
       passwordHash
     });
 
     await newUser.save();
 
     const token = jwt.sign(
-      { id: newUser._id, username: newUser.username },
+      { id: newUser._id, username: newUser.username,avatar:newUser.avatar },
       process.env.JWT_SECRET
     );
 
@@ -214,7 +217,7 @@ app.post("/login", async (req, res) => {
     if (!isValid) return res.status(401).json({ error: "Invalid credentials" });
 
     const token = jwt.sign(
-      {username: user.username},
+      {username: user.username,avatar: user.avatar},
       process.env.JWT_SECRET,
       
     );
