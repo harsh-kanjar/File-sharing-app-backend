@@ -82,9 +82,15 @@ app.post("/share-file", async (req, res) => {
   }
 });
 
-// Multer Config
+// // Multer Config
+// const upload = multer({
+//   dest: "uploads/",
+//   limits: { fileSize: 50 * 1024 * 1024 } // 50 MB
+// });
+
+// Multer Config → Save files in Netlify's /tmp directory
 const upload = multer({
-  dest: "uploads/",
+  dest: "/tmp", // ✅ temporary storage
   limits: { fileSize: 50 * 1024 * 1024 } // 50 MB
 });
 
@@ -251,21 +257,20 @@ function authMiddleware(req, res, next) {
 // --- Upload Endpoint (unchanged, but will accept username from header/body) ---
 app.post("/upload", upload.single("file"), async (req, res) => {
   try {
-    // 🔹 Get JWT token from Authorization header
+    // Get JWT token
     const authHeader = req.headers.authorization;
     if (!authHeader) {
       return res.status(401).json({ error: "No token provided" });
     }
 
-    const token = authHeader.split(" ")[1]; // "Bearer <token>"
+    const token = authHeader.split(" ")[1];
     if (!token) {
       return res.status(401).json({ error: "Invalid token format" });
     }
 
-    // 🔹 Verify & decode token
     let decoded;
     try {
-      decoded = jwt.verify(token, "6dsfta6sta87dad86as7d6asd7a6d");
+      decoded = jwt.verify(token, process.env.JWT_SECRET); // ✅ use env var
     } catch (err) {
       return res.status(401).json({ error: "Invalid or expired token" });
     }
@@ -281,20 +286,21 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 
     const filePath = req.file.path;
     const fileSize = req.file.size;
-    const originalName = req.file.originalname; // ✅ Get original filename
+    const originalName = req.file.originalname;
 
-    // 🔹 Upload to Cloudinary
+    // Upload to Cloudinary
     const fileUpload = await cloudinary.uploader.upload(filePath, {
       resource_type: "raw",
       folder: "my-files"
     });
 
-    fs.unlinkSync(filePath); // remove local file
+    // Delete temporary file
+    fs.unlinkSync(filePath);
 
-    // 🔹 Save metadata in MongoDB with filename
+    // Save metadata in MongoDB
     const newFile = new ShareFile({
       username,
-      filename: originalName,  // ✅ Save original filename
+      filename: originalName,
       link: fileUpload.secure_url,
       size: fileSize
     });
