@@ -1,8 +1,10 @@
 # example netlify.toml
 [build]
-  command = ""
-  functions = "netlify/functions"
-  publish = "dist"
+  publish = "dist"         # your frontend build folder
+  command = "npm run build"
+
+[functions]
+  directory = "netlify/functions"
 
   ## Uncomment to use this redirect for Single Page Applications like create-react-app.
   ## Not needed for static site generators.
