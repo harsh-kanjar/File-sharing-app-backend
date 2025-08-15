@@ -90,7 +90,7 @@ app.post("/share-file", async (req, res) => {
 
 // Multer Config → Save files in Netlify's /tmp directory
 const upload = multer({
-  dest: "/tmp", // ✅ temporary storage
+  dest: "/tmp/", // ✅ temporary storage
   limits: { fileSize: 50 * 1024 * 1024 } // 50 MB
 });
 
