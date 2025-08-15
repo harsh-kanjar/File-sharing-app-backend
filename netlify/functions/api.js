@@ -1,12 +1,7 @@
-const express = require("express");
-const serverless = require("serverless-http");
-
-const app = express();
-
-// Simple route
-app.get("/", (req, res) => {
-  res.send("Hello World from Netlify!");
-});
-
-// Export the handler
-module.exports.handler = serverless(app);
+// netlify/functions/test.js
+exports.handler = async () => {
+  return {
+    statusCode: 200,
+    body: "Function is working!"
+  };
+};
