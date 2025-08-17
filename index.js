@@ -139,13 +139,13 @@ app.post("/send-otp", async (req, res) => {
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: "harshkanjar007@gmail.com",
+        user: "your-email@gmail.com",
         pass: "cqwy odvg gtii gkxj" // App password
       }
     });
 
     await transporter.sendMail({
-      from: "harshkanjar007@gmail.com", // must match Gmail account
+      from: "your-email@gmail.com", // must match Gmail account
       to: email,
       subject: "Your OTP Code",
       text: `Your verification code is ${otp}. It will expire in 5 minutes.`
