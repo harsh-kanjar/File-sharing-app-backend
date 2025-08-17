@@ -1,0 +1,101 @@
+---
+
+ Steps to Create a Netlify Cloud Function
+
+1. Install Netlify CLI
+
+If you don’t already have it:
+
+```
+npm install -g netlify-cli
+```
+
+Login to Netlify:
+
+```
+netlify login
+```
+
+---
+
+2. Create a Project Folder
+
+```
+mkdir my-netlify-funcs
+cd my-netlify-funcs
+```
+
+---
+
+3. Initialize Netlify Project
+
+```
+netlify init
+```
+
+ Link to an existing Netlify site or create a new one.
+ This generates a `.netlify` folder.
+
+---
+
+4. Create Functions Folder
+
+Inside your project, create a `netlify/functions` folder:
+
+```
+mkdir -p netlify/functions
+```
+
+---
+
+5. Write Your First Function
+
+Example: `netlify/functions/hello.js`
+
+```js
+exports.handler = async function(event, context) {
+  return {
+    statusCode: 200,
+    body: JSON.stringify({ message: "Hello from Netlify Functions!" }),
+  };
+};
+```
+
+---
+
+6. Test Locally
+
+Run the dev server:
+
+```
+netlify dev
+```
+
+ Now open:
+[http://localhost:8888/.netlify/functions/hello](http://localhost:8888/.netlify/functions/hello)
+
+You should see:
+
+```
+{ "message": "Hello from Netlify Functions!" }
+```
+
+---
+
+7. Deploy to Netlify
+
+```
+netlify deploy --prod
+```
+
+After deployment, your function will be available at:
+
+```
+https://<your-site>.netlify.app/.netlify/functions/hello
+```
+
+---
+
+ That’s it! You now have a working Netlify Cloud Function.
+
+---
