@@ -124,37 +124,132 @@ const otpStore = new Map();
 app.post("/send-otp", async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ error: "Email is required" });
 
-    const existing = await User.findOne({ email: email.toLowerCase().trim() });
-    if (existing) return res.status(409).json({ error: "Email already registered" });
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
 
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Check if user already exists
+    const existing = await User.findOne({ email: normalizedEmail });
+    if (existing) {
+      return res.status(409).json({ error: "Email already registered" });
+    }
+
+    // Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    otpStore.set(email.toLowerCase().trim(), {
+    otpStore.set(normalizedEmail, {
       otp,
-      expiresAt: Date.now() + 5 * 60 * 1000
+      expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
     });
 
-    // ✅ Ensure `from` matches your Gmail user
+    // ✅ Gmail SMTP config (Render-safe)
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true, // true for 465, false for 587
       auth: {
         user: "aryanjadhav102@gmail.com",
-        pass: "hqbwmwjgtrzawkkr" // App password
-      }
+        pass: "hqbwmwjgtrzawkkr",
+      },
     });
 
+    // Verify transporter connection (optional but helpful for debugging)
+    await transporter.verify();
+
+    const appName = "Files Sharing App";
+
+    // Send email
     await transporter.sendMail({
-      from: "aryanjadhav102@gmail.com", // must match Gmail account
-      to: email,
-      subject: "Your OTP Code",
-      text: `Your verification code is ${otp}. It will expire in 5 minutes.`
-    });
+  from: `"${appName}" <${process.env.GMAIL_USER}>`,
+  to: normalizedEmail,
+  subject: `${appName} — Your verification code`,
+  text: `Your verification code is ${otp}. It will expire in 5 minutes.\n\nIf you didn't request this, ignore this email.\n\n— ${appName}`,
+  html: `
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <style>
+          /* Mobile-first, keep CSS inline-friendly */
+          body { margin:0; padding:0; background:#f6f8fb; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+          .container { max-width:560px; margin:28px auto; padding:20px; background:#ffffff; border-radius:12px; box-shadow:0 6px 18px rgba(20,30,60,0.08); }
+          .header { text-align:center; padding-bottom:8px; }
+          .logo { font-weight:700; color:#2b3a90; font-size:20px; }
+          .h1 { font-size:20px; color:#0f1724; margin:18px 0 6px; }
+          .lead { color:#475569; font-size:14px; line-height:1.5; margin-bottom:18px; }
+          .otp-box { display:flex; align-items:center; justify-content:center; font-size:28px; letter-spacing:6px; font-weight:700; background:linear-gradient(90deg,#eef3ff,#f8fbff); border-radius:10px; padding:18px; color:#0b2b6b; margin:10px 0 18px; }
+          .note { font-size:13px; color:#6b7280; margin-bottom:18px; }
+          .btn { display:inline-block; text-decoration:none; background:#2b3a90; color:#fff; padding:10px 16px; border-radius:8px; font-weight:600; font-size:14px; }
+          .footer { font-size:12px; color:#9ca3af; text-align:center; margin-top:18px; }
+          .muted { color:#9ca3af; font-size:12px; margin-top:8px; text-align:center; }
+          /* Responsive tweaks */
+          @media (max-width:420px) {
+            .otp-box { font-size:24px; letter-spacing:5px; padding:14px; }
+            .container { margin:18px 12px; padding:16px; }
+          }
+        </style>
+      </head>
+      <body>
+        <div style="background:#f6f8fb; padding:24px 12px;">
+          <div class="container" role="article" aria-label="${appName} verification email">
+            <div class="header">
+              <div class="logo">${appName}</div>
+            </div>
 
-    res.json({ message: "OTP sent to email" });
+            <h1 class="h1">Verify your email address</h1>
+
+            <p class="lead">
+              Thanks for signing up — we're almost done. Use the code below to verify your email. It will expire in <strong>5 minutes</strong>.
+            </p>
+
+            <div class="otp-box" aria-hidden="true" role="presentation">
+              ${otp}
+            </div>
+
+            <p class="note">
+              Enter this code in the app where prompted. If you didn't request this code, you can safely ignore this email.
+            </p>
+
+            <!-- Optional action button (links to a verify page if you have one) -->
+            <p style="text-align:center; margin:14px 0;">
+              <a href="#" class="btn" onclick="event.preventDefault()">I didn't request this</a>
+            </p>
+
+            <div class="muted">
+              If the button doesn't work, copy and paste this code into the app: <strong>${otp}</strong>
+            </div>
+
+            <div class="footer">
+              — ${appName} Team<br/>
+              Need help? Reply to this email.
+            </div>
+          </div>
+
+          <div style="max-width:560px; margin:12px auto; text-align:center; color:#9ca3af; font-size:12px;">
+            This email was sent to <strong>${normalizedEmail}</strong>. If you no longer want to receive these messages, you can ignore them.
+          </div>
+        </div>
+      </body>
+    </html>
+  `,
+});
+
+    console.log(`OTP ${otp} sent to ${normalizedEmail}`);
+    res.json({ message: "OTP sent successfully" });
 
   } catch (err) {
     console.error("OTP send error:", err);
+
+    if (err.code === "EAUTH") {
+      return res.status(401).json({ error: "Email authentication failed" });
+    }
+    if (err.code === "ETIMEDOUT" || err.code === "ECONNECTION") {
+      return res.status(504).json({ error: "Email service unreachable" });
+    }
+
     res.status(500).json({ error: "Failed to send OTP" });
   }
 });
