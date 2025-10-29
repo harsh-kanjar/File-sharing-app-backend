@@ -139,13 +139,13 @@ app.post("/send-otp", async (req, res) => {
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: "your-email@gmail.com",
-        pass: "cqwy odvg gtii gkxj" // App password
+        user: "aryanjadhav102@gmail.com",
+        pass: "hqbwmwjgtrzawkkr" // App password
       }
     });
 
     await transporter.sendMail({
-      from: "your-email@gmail.com", // must match Gmail account
+      from: "aryanjadhav102@gmail.com", // must match Gmail account
       to: email,
       subject: "Your OTP Code",
       text: `Your verification code is ${otp}. It will expire in 5 minutes.`
@@ -482,3 +482,6 @@ app.post("/share-file", async (req, res) => {
 app.listen(port, () => {
   console.log(`🚀 Server running at http://localhost:${port}`);
 });
+
+
+// cqwy odvg gtii gkxj
